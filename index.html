@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Simple Web OS</title>
+    <!-- Tailwind CSS CDN for easy styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CSS Variables for Theming */
+        :root {
+            --taskbar-bg: #3a3f47;
+            --window-header-bg: #3a3f47;
+            --text-color: #e0e0e0;
+            --button-border-radius: 0.5rem; /* Default for buttons and rounded elements */
+            --wallpaper-image: none; /* Default no image */
+            --desktop-bg-color: #282c34; /* Fallback if image fails */
+        }
+
+        /* Custom styles for a clean look */
+        body {
+            font-family: "Inter", sans-serif;
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling on the main body */
+            background-color: #333; /* Dark background for the "desktop" */
+        }
+
+        .desktop-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* Full viewport height */
+            width: 100vw; /* Full viewport width */
+            background-color: var(--desktop-bg-color); /* Use variable */
+            background-image: var(--wallpaper-image); /* Use variable */
+            background-size: cover;
+            background-position: center;
+            color: var(--text-color); /* Use variable */
+            position: relative; /* For positioning desktop icons */
+            padding-top: 1rem; /* Space for desktop icons */
+            padding-left: 1rem;
+        }
+
+        .app-window {
+            position: absolute; /* Position windows over the desktop */
+            width: 80%;
+            max-width: 700px; /* Max width for larger screens */
+            height: 70%;
+            max-height: 500px; /* Max height for larger screens */
+            background-color: #444; /* Window background */
+            border-radius: var(--button-border-radius); /* Use variable */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5); /* Shadow for depth */
+            display: none; /* Hidden by default */
+            flex-direction: column; /* Content inside window stacks vertically */
+            overflow: hidden; /* Hide overflow content within the window */
+            resize: both; /* Allow resizing */
+            min-width: 300px; /* Minimum width for resizing */
+            min-height: 200px; /* Minimum height for resizing */
+            z-index: 10; /* Default z-index */
+        }
+
+        .app-window-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: var(--window-header-bg); /* Use variable */
+            border-top-left-radius: var(--button-border-radius); /* Use variable */
+            border-top-right-radius: var(--button-border-radius); /* Use variable */
+            cursor: grab; /* Indicate draggable header */
+        }
+
+        .app-window-content {
+            flex-grow: 1; /* Take up remaining space */
+            padding: 1rem;
+            overflow-y: auto; /* Scroll for content if needed */
+            background-color: #555; /* Content area background */
+        }
+
+        .taskbar {
+            position: fixed; /* Fixed at the bottom */
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--taskbar-bg); /* Use variable */
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: flex-start; /* Aligns items to the left */
+            gap: 1rem; /* Space between icons */
+            box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.3); /* Shadow for taskbar */
+            border-top-left-radius: var(--button-border-radius); /* Use variable */
+            border-top-right-radius: var(--button-border-radius); /* Use variable */
+            z-index: 100; /* Ensure taskbar is always on top */
+        }
+
+        .taskbar-icon {
+            background-color: #555; /* Icon background */
+            padding: 0.75rem;
+            border-radius: var(--button-border-radius); /* Use variable */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out; /* Smooth transitions */
+            color: var(--text-color); /* Use variable */
+            font-weight: bold;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 60px; /* Ensure consistent size */
+        }
+
+        .taskbar-icon:hover {
+            background-color: #666; /* Darker on hover */
+            transform: translateY(-3px); /* Slight lift on hover */
+        }
+
+        .close-button {
+            background-color: #ff6b6b; /* Red close button */
+            color: white;
+            border: none;
+            padding: 0.3rem 0.6rem;
+            border-radius: var(--button-border-radius); /* Use variable */
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .close-button:hover {
+            background-color: #e04848; /* Darker red on hover */
+        }
+
+        /* Specific app styles */
+        #notepad-app textarea {
+            width: 100%;
+            height: 100%;
+            background-color: #666;
+            color: #eee;
+            border: none;
+            padding: 0.5rem;
+            border-radius: var(--button-border-radius); /* Use variable */
+            resize: none; /* Prevent internal textarea resize */
+            outline: none; /* Remove focus outline */
+        }
+
+        #calculator-app {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            padding: 0.5rem;
+        }
+
+        #calculator-display {
+            grid-column: span 4;
+            background-color: #888;
+            color: white;
+            padding: 0.5rem;
+            text-align: right;
+            font-size: 2rem;
+            border-radius: var(--button-border-radius); /* Use variable */
+        }
+
+        .calc-button {
+            background-color: #777;
+            color: var(--text-color); /* Use variable */
+            padding: 1rem;
+            border-radius: var(--button-border-radius); /* Use variable */
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: background-color 0.2s ease-in-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .calc-button:hover {
+            background-color: #999;
+        }
+
+        .calc-button.operator {
+            background-color: #ff9f43;
+        }
+
+        .calc-button.operator:hover {
+            background-color: #e08e39;
+        }
+
+        .calc-button.clear {
+            background-color: #ff6b6b;
+        }
+
+        .calc-button.clear:hover {
+            background-color: #e04848;
+        }
+
+        /* Message Box Styles */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #444;
+            color: var(--text-color); /* Use variable */
+            padding: 1.5rem;
+            border-radius: var(--button-border-radius); /* Use variable */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+            z-index: 1000; /* Ensure it's on top */
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .message-box-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .message-box-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: var(--button-border-radius); /* Use variable */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .message-box-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Start Menu Styles */
+        .start-menu {
+            position: fixed;
+            bottom: 4.5rem; /* Above the taskbar */
+            left: 1rem;
+            width: 250px;
+            max-height: 80%;
+            background-color: #3a3f47;
+            border-radius: var(--button-border-radius); /* Use variable */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            padding: 0.5rem;
+            overflow-y: auto; /* Scroll if many apps */
+            z-index: 99; /* Below message box, above windows */
+        }
+
+        .start-menu-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            color: var(--text-color); /* Use variable */
+            transition: background-color 0.2s ease-in-out;
+            border-radius: var(--button-border-radius); /* Use variable */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .start-menu-item:hover {
+            background-color: #555;
+        }
+
+        /* Desktop Icon Styles */
+        .desktop-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 80px; /* Icon width */
+            height: 80px; /* Icon height */
+            margin: 0.5rem;
+            cursor: pointer;
+            color: var(--text-color); /* Use variable */
+            font-size: 0.85rem;
+            text-align: center;
+            border-radius: var(--button-border-radius); /* Use variable */
+            transition: background-color 0.2s ease-in-out;
+            user-select: none; /* Prevent text selection on double click */
+        }
+
+        .desktop-icon:hover {
+            background-color: rgba(255, 255, 255, 0.1); /* Slight highlight on hover */
+        }
+
+        .desktop-icon-img {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 0.25rem;
+            /* Simple placeholder icon */
+            background-color: #007bff;
+            border-radius: var(--button-border-radius); /* Use variable */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        /* Context Menu Styles */
+        .context-menu {
+            position: absolute;
+            background-color: #3a3f47;
+            border-radius: var(--button-border-radius); /* Use variable */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            padding: 0.5rem 0;
+            display: none; /* Hidden by default */
+            z-index: 1001; /* Above everything */
+            min-width: 150px;
+        }
+
+        .context-menu-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            color: var(--text-color); /* Use variable */
+            transition: background-color 0.1s ease-in-out;
+        }
+
+        .context-menu-item:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="desktop-container" id="desktop-container">
+        <!-- Desktop icons will be rendered here -->
+        <div id="desktop-icons-container" class="flex flex-wrap items-start content-start h-full w-full">
+            <!-- Icons go here -->
+        </div>
+    </div>
+
+    <!-- Notepad App Window -->
+    <div id="notepad-window" class="app-window">
+        <div class="app-window-header" data-app-id="notepad-window">
+            <span class="font-bold">Notepad</span>
+            <button class="close-button" onclick="closeApp('notepad-window')">X</button>
+        </div>
+        <div class="app-window-content flex-grow flex flex-col">
+            <textarea id="notepad-app" placeholder="Start typing..."></textarea>
+        </div>
+    </div>
+
+    <!-- Calculator App Window -->
+    <div id="calculator-window" class="app-window">
+        <div class="app-window-header" data-app-id="calculator-window">
+            <span class="font-bold">Calculator</span>
+            <button class="close-button" onclick="closeApp('calculator-window')">X</button>
+        </div>
+        <div class="app-window-content flex-grow flex flex-col items-center justify-center">
+            <div id="calculator-app" class="w-full max-w-xs">
+                <div id="calculator-display">0</div>
+                <button class="calc-button clear" onclick="clearCalculator()">C</button>
+                <button class="calc-button operator" onclick="appendToDisplay('/')">/</button>
+                <button class="calc-button operator" onclick="appendToDisplay('*')">*</button>
+                <button class="calc-button operator" onclick="appendToDisplay('-')">-</button>
+                <button class="calc-button" onclick="appendToDisplay('7')">7</button>
+                <button class="calc-button" onclick="appendToDisplay('8')">8</button>
+                <button class="calc-button" onclick="appendToDisplay('9')">9</button>
+                <button class="calc-button operator" onclick="appendToDisplay('+')">+</button>
+                <button class="calc-button" onclick="appendToDisplay('4')">4</button>
+                <button class="calc-button" onclick="appendToDisplay('5')">5</button>
+                <button class="calc-button" onclick="appendToDisplay('6')">6</button>
+                <button class="calc-button" onclick="calculateResult()">=</button>
+                <button class="calc-button" onclick="appendToDisplay('1')">1</button>
+                <button class="calc-button" onclick="appendToDisplay('2')">2</button>
+                <button class="calc-button" onclick="appendToDisplay('3')">3</button>
+                <button class="calc-button" onclick="appendToDisplay('0')">0</button>
+                <button class="calc-button" onclick="appendToDisplay('.')">.</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings App Window -->
+    <div id="settings-window" class="app-window">
+        <div class="app-window-header" data-app-id="settings-window">
+            <span class="font-bold">Settings</span>
+            <button class="close-button" onclick="closeApp('settings-window')">X</button>
+        </div>
+        <div class="app-window-content flex-grow flex flex-col items-center justify-center">
+            <h2 class="text-2xl font-bold mb-4">System Settings</h2>
+            <p>Welcome to the settings panel. More options coming soon!</p>
+            <div class="mt-4 p-4 bg-gray-600 rounded-md">
+                <label for="theme-select" class="block text-sm font-medium text-gray-300 mb-2">Select Theme:</label>
+                <select id="theme-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-gray-700 text-white">
+                    <option>Dark</option>
+                    <option>Light (not implemented)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Browser App Window -->
+    <div id="browser-window" class="app-window">
+        <div class="app-window-header" data-app-id="browser-window">
+            <span class="font-bold">Browser</span>
+            <button class="close-button" onclick="closeApp('browser-window')">X</button>
+        </div>
+        <div class="app-window-content flex-grow flex flex-col">
+            <div class="flex mb-2">
+                <input type="text" id="browser-url-bar" class="flex-grow p-2 rounded-l-md bg-gray-600 text-white border border-gray-500" placeholder="Enter URL (e.g., example.com)">
+                <button id="browser-go-button" class="p-2 bg-blue-600 hover:bg-blue-700 rounded-r-md text-white">Go</button>
+            </div>
+            <iframe id="browser-iframe" class="flex-grow w-full h-full bg-white rounded-md border border-gray-500" srcdoc="<p style='text-align: center; color: #333; padding: 20px;'>Welcome to the simple browser! Enter a URL above and click Go.</p>"></iframe>
+        </div>
+    </div>
+
+    <!-- Theme Settings App Window -->
+    <div id="theme-settings-window" class="app-window">
+        <div class="app-window-header" data-app-id="theme-settings-window">
+            <span class="font-bold">Theme Settings</span>
+            <button class="close-button" onclick="closeApp('theme-settings-window')">X</button>
+        </div>
+        <div class="app-window-content flex-grow flex flex-col p-4 space-y-4">
+            <h2 class="text-2xl font-bold mb-4">Customize Your OS Theme</h2>
+
+            <div>
+                <label for="taskbar-color" class="block text-sm font-medium mb-1">Taskbar Color:</label>
+                <input type="color" id="taskbar-color" class="w-full h-10 rounded-md p-0 border-none cursor-pointer" value="#3a3f47">
+            </div>
+
+            <div>
+                <label for="header-color" class="block text-sm font-medium mb-1">Window Header Color:</label>
+                <input type="color" id="header-color" class="w-full h-10 rounded-md p-0 border-none cursor-pointer" value="#3a3f47">
+            </div>
+
+            <div>
+                <label for="text-color" class="block text-sm font-medium mb-1">Text Color:</label>
+                <input type="color" id="text-color" class="w-full h-10 rounded-md p-0 border-none cursor-pointer" value="#e0e0e0">
+            </div>
+
+            <div>
+                <label for="button-roundedness" class="block text-sm font-medium mb-1">Button Roundedness (0-20px):</label>
+                <input type="range" id="button-roundedness" min="0" max="20" value="8" class="w-full h-8 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                <span id="button-roundedness-value" class="text-sm text-gray-400">8px</span>
+            </div>
+
+            <div>
+                <label for="wallpaper-image" class="block text-sm font-medium mb-1">Wallpaper Image URL:</label>
+                <input type="text" id="wallpaper-image" class="w-full p-2 rounded-md bg-gray-600 text-white border border-gray-500" placeholder="e.g., https://placehold.co/1920x1080/000/fff?text=Wallpaper">
+                <p class="text-xs text-gray-400 mt-1">Leave empty for solid background. Use a placeholder like `https://placehold.co/1920x1080/000/fff?text=Wallpaper` for testing.</p>
+            </div>
+
+            <button id="apply-theme-button" class="mt-4 p-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md">Apply Theme</button>
+        </div>
+    </div>
+
+    <!-- Message Box HTML -->
+    <div id="message-box" class="message-box">
+        <p id="message-box-text"></p>
+        <div class="message-box-buttons">
+            <button class="message-box-button" id="message-box-ok">OK</button>
+        </div>
+    </div>
+
+    <!-- Start Menu -->
+    <div id="start-menu" class="start-menu">
+        <div class="font-bold text-lg mb-2 px-2">Applications</div>
+        <div id="start-menu-app-list">
+            <!-- App list will be dynamically generated here -->
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu">
+        <div class="context-menu-item" id="context-open">Open</div>
+        <div class="context-menu-item" id="context-pin-unpin">Pin to Taskbar</div>
+    </div>
+
+    <!-- Taskbar -->
+    <div class="taskbar">
+        <div class="taskbar-icon" onclick="toggleStartMenu()">Start</div>
+        <div id="taskbar-pinned-apps" class="flex gap-1rem">
+            <!-- Pinned app icons will be rendered here -->
+        </div>
+    </div>
+
+    <script>
+        // Global variables for message box callbacks
+        let messageBoxResolve = null;
+
+        /**
+         * Displays a custom message box instead of alert().
+         * @param {string} message - The message to display.
+         * @returns {Promise<void>} A promise that resolves when the OK button is clicked.
+         */
+        function showMessageBox(message) {
+            return new Promise((resolve) => {
+                const msgBox = document.getElementById('message-box');
+                const msgText = document.getElementById('message-box-text');
+                const msgOkButton = document.getElementById('message-box-ok');
+
+                msgText.textContent = message;
+                msgBox.style.display = 'flex'; // Show the message box
+
+                // Store the resolve function to be called when OK is clicked
+                messageBoxResolve = () => {
+                    msgBox.style.display = 'none'; // Hide the message box
+                    resolve(); // Resolve the promise
+                    messageBoxResolve = null; // Clear the resolve function
+                };
+
+                msgOkButton.onclick = messageBoxResolve; // Set the click handler
+            });
+        }
+
+        // --- OS Core Logic ---
+
+        // Configuration for all available applications
+        const appsConfig = [
+            { id: 'notepad-window', name: 'Notepad', iconChar: '📝', pinned: false },
+            { id: 'calculator-window', name: 'Calculator', iconChar: '🧮', pinned: true },
+            { id: 'settings-window', name: 'Settings', iconChar: '⚙️', pinned: false },
+            { id: 'browser-window', name: 'Browser', iconChar: '🌐', pinned: false },
+            { id: 'theme-settings-window', name: 'Themes', iconChar: '🎨', pinned: false } // New Theme Settings App
+        ];
+
+        // Function to open an application window
+        function openApp(appId) {
+            const appWindow = document.getElementById(appId);
+            if (appWindow) {
+                // Ensure window is visible to get correct dimensions
+                appWindow.style.display = 'flex';
+
+                // Get current computed style to check if left/top are already set
+                const computedStyle = window.getComputedStyle(appWindow);
+                const currentLeft = parseFloat(computedStyle.left);
+                const currentTop = parseFloat(computedStyle.top);
+
+                // If left or top are NaN or 0 (meaning not explicitly positioned yet or at default 0,0), center it
+                // We also check if the style attribute for left/top is empty to distinguish from intentional 0px positioning
+                if (isNaN(currentLeft) || isNaN(currentTop) || (appWindow.style.left === '' && appWindow.style.top === '')) {
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+                    const windowWidth = appWindow.offsetWidth;
+                    const windowHeight = appWindow.offsetHeight;
+
+                    appWindow.style.left = `${(viewportWidth - windowWidth) / 2}px`;
+                    appWindow.style.top = `${(viewportHeight - windowHeight) / 2}px`;
+                }
+
+                bringToFront(appWindow); // Bring the opened window to the front
+                closeStartMenu(); // Close start menu if open
+            } else {
+                showMessageBox(`App "${appId}" not found. Please ensure its HTML structure exists.`);
+            }
+        }
+
+        // Function to close an application window
+        function closeApp(appId) {
+            const appWindow = document.getElementById(appId);
+            if (appWindow) {
+                appWindow.style.display = 'none'; // Hide the window
+            }
+        }
+
+        // Keep track of the highest z-index for layering windows
+        let zIndexCounter = 10;
+
+        // Function to bring a window to the front when clicked
+        function bringToFront(appWindow) {
+            zIndexCounter++;
+            appWindow.style.zIndex = zIndexCounter;
+        }
+
+        // Make windows draggable
+        document.querySelectorAll('.app-window-header').forEach(header => {
+            let isDragging = false;
+            let currentWindow = null;
+            let offsetX, offsetY;
+
+            header.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                currentWindow = header.closest('.app-window');
+                bringToFront(currentWindow); // Bring to front when dragging starts
+
+                // Calculate offset relative to the window's current position
+                const rect = currentWindow.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+
+                currentWindow.style.cursor = 'grabbing'; // Change cursor
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                currentWindow.style.left = `${e.clientX - offsetX}px`;
+                currentWindow.style.top = `${e.clientY - offsetY}px`;
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                if (currentWindow) {
+                    currentWindow.style.cursor = 'grab'; // Reset cursor
+                    currentWindow = null;
+                }
+            });
+
+            // Handle touch events for dragging on mobile
+            header.addEventListener('touchstart', (e) => {
+                isDragging = true;
+                currentWindow = header.closest('.app-window');
+                bringToFront(currentWindow);
+                const touch = e.touches[0];
+                const rect = currentWindow.getBoundingClientRect();
+                offsetX = touch.clientX - rect.left;
+                offsetY = touch.clientY - rect.top;
+                e.preventDefault(); // Prevent scrolling while dragging
+            }, { passive: false }); // Use passive: false to allow preventDefault
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                const touch = e.touches[0];
+                currentWindow.style.left = `${touch.clientX - offsetX}px`;
+                currentWindow.style.top = `${touch.clientY - offsetY}px`;
+                e.preventDefault(); // Prevent scrolling while dragging
+            }, { passive: false });
+
+            document.addEventListener('touchend', () => {
+                isDragging = false;
+                currentWindow = null;
+            });
+        });
+
+        // --- Start Menu Logic ---
+        const startMenu = document.getElementById('start-menu');
+        const startMenuAppList = document.getElementById('start-menu-app-list');
+
+        function toggleStartMenu() {
+            if (startMenu.style.display === 'flex') {
+                startMenu.style.display = 'none';
+            } else {
+                renderStartMenuItems();
+                startMenu.style.display = 'flex';
+            }
+        }
+
+        function closeStartMenu() {
+            startMenu.style.display = 'none';
+        }
+
+        function renderStartMenuItems() {
+            startMenuAppList.innerHTML = ''; // Clear previous items
+            appsConfig.forEach(app => {
+                const item = document.createElement('div');
+                item.className = 'start-menu-item';
+                item.innerHTML = `
+                    <span>${app.iconChar} ${app.name}</span>
+                    <button class="text-xs px-2 py-1 rounded ${app.pinned ? 'bg-red-600' : 'bg-blue-600'}"
+                            onclick="event.stopPropagation(); togglePinStatus('${app.id}')">
+                        ${app.pinned ? 'Unpin' : 'Pin'}
+                    </button>
+                `;
+                item.onclick = () => openApp(app.id);
+                startMenuAppList.appendChild(item);
+            });
+        }
+
+        // Close start menu when clicking outside
+        document.addEventListener('click', (event) => {
+            if (startMenu.style.display === 'flex' &&
+                !startMenu.contains(event.target) &&
+                !event.target.closest('.taskbar-icon[onclick="toggleStartMenu()"]')) {
+                closeStartMenu();
+            }
+            // Also close context menu if open
+            const contextMenu = document.getElementById('context-menu');
+            if (contextMenu.style.display === 'block') {
+                contextMenu.style.display = 'none';
+            }
+        });
+
+        // --- Desktop Icons Logic ---
+        const desktopIconsContainer = document.getElementById('desktop-icons-container');
+        let activeContextMenuAppId = null; // To keep track of which app icon was right-clicked
+
+        function renderDesktopIcons() {
+            desktopIconsContainer.innerHTML = ''; // Clear existing icons
+            appsConfig.forEach(app => {
+                const icon = document.createElement('div');
+                icon.className = 'desktop-icon';
+                icon.id = `desktop-icon-${app.id}`; // Unique ID for desktop icon
+                icon.innerHTML = `
+                    <div class="desktop-icon-img">${app.iconChar}</div>
+                    <span>${app.name}</span>
+                `;
+                icon.ondblclick = () => openApp(app.id); // Double click to open
+
+                // Right-click context menu
+                icon.addEventListener('contextmenu', (e) => {
+                    e.preventDefault(); // Prevent default browser context menu
+                    const contextMenu = document.getElementById('context-menu');
+                    const contextPinUnpin = document.getElementById('context-pin-unpin');
+
+                    activeContextMenuAppId = app.id; // Store the ID of the clicked app
+
+                    // Update pin/unpin text
+                    const currentApp = appsConfig.find(a => a.id === app.id);
+                    if (currentApp) {
+                        contextPinUnpin.textContent = currentApp.pinned ? 'Unpin from Taskbar' : 'Pin to Taskbar';
+                    }
+
+                    contextMenu.style.display = 'block';
+                    contextMenu.style.left = `${e.clientX}px`;
+                    contextMenu.style.top = `${e.clientY}px`;
+                    bringToFront(contextMenu); // Bring context menu to front
+                });
+
+                desktopIconsContainer.appendChild(icon);
+            });
+        }
+
+        // Context menu actions
+        document.getElementById('context-open').onclick = () => {
+            if (activeContextMenuAppId) {
+                openApp(activeContextMenuAppId);
+            }
+            document.getElementById('context-menu').style.display = 'none';
+        };
+
+        document.getElementById('context-pin-unpin').onclick = () => {
+            if (activeContextMenuAppId) {
+                togglePinStatus(activeContextMenuAppId);
+            }
+            document.getElementById('context-menu').style.display = 'none';
+        };
+
+        // --- Taskbar Pinning Logic ---
+        const taskbarPinnedApps = document.getElementById('taskbar-pinned-apps');
+
+        function renderTaskbarIcons() {
+            taskbarPinnedApps.innerHTML = ''; // Clear previous icons
+            appsConfig.filter(app => app.pinned).forEach(app => {
+                const icon = document.createElement('div');
+                icon.className = 'taskbar-icon';
+                icon.innerHTML = app.iconChar; // Use iconChar for taskbar
+                icon.title = app.name; // Tooltip on hover
+                icon.onclick = () => openApp(app.id);
+                taskbarPinnedApps.appendChild(icon);
+            });
+        }
+
+        function togglePinStatus(appId) {
+            const appIndex = appsConfig.findIndex(app => app.id === appId);
+            if (appIndex !== -1) {
+                appsConfig[appIndex].pinned = !appsConfig[appIndex].pinned;
+                renderTaskbarIcons(); // Re-render taskbar
+                renderStartMenuItems(); // Update pin/unpin text in start menu
+            }
+        }
+
+        // --- Calculator App Logic (Remains the same) ---
+        let display = document.getElementById('calculator-display');
+        let currentInput = '0';
+        let operator = null;
+        let firstOperand = null;
+        let waitingForSecondOperand = false;
+
+        function updateDisplay() {
+            display.textContent = currentInput;
+        }
+
+        function appendToDisplay(number) {
+            if (waitingForSecondOperand === true) {
+                currentInput = number;
+                waitingForSecondOperand = false;
+            } else {
+                currentInput = currentInput === '0' ? number : currentInput + number;
+            }
+            updateDisplay();
+        }
+
+        function clearCalculator() {
+            currentInput = '0';
+            operator = null;
+            firstOperand = null;
+            waitingForSecondOperand = false;
+            updateDisplay();
+        }
+
+        function handleOperator(nextOperator) {
+            const inputValue = parseFloat(currentInput);
+
+            if (operator && waitingForSecondOperand) {
+                operator = nextOperator;
+                return;
+            }
+
+            if (firstOperand === null) {
+                firstOperand = inputValue;
+            } else if (operator) {
+                const result = performCalculation[operator](firstOperand, inputValue);
+                currentInput = String(result);
+                firstOperand = result;
+            }
+
+            waitingForSecondOperand = true;
+            operator = nextOperator;
+            updateDisplay();
+        }
+
+        const performCalculation = {
+            '/': (first, second) => first / second,
+            '*': (first, second) => first * second,
+            '+': (first, second) => first + second,
+            '-': (first, second) => first - second,
+        };
+
+        function calculateResult() {
+            if (operator === null || waitingForSecondOperand) {
+                return;
+            }
+
+            const inputValue = parseFloat(currentInput);
+            let result = performCalculation[operator](firstOperand, inputValue);
+
+            currentInput = String(result);
+            operator = null;
+            firstOperand = null;
+            waitingForSecondOperand = false;
+            updateDisplay();
+        }
+
+        // Attach event listeners for calculator buttons
+        document.querySelectorAll('.calc-button').forEach(button => {
+            if (button.textContent === 'C') {
+                button.onclick = clearCalculator;
+            } else if (button.textContent === '=') {
+                button.onclick = calculateResult;
+            } else if (['+', '-', '*', '/'].includes(button.textContent)) {
+                button.onclick = () => handleOperator(button.textContent);
+            } else {
+                button.onclick = () => appendToDisplay(button.textContent);
+            }
+        });
+
+        // Browser App Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const browserUrlBar = document.getElementById('browser-url-bar');
+            const browserGoButton = document.getElementById('browser-go-button');
+            const browserIframe = document.getElementById('browser-iframe');
+
+            if (browserUrlBar && browserGoButton && browserIframe) {
+                function navigateBrowser() {
+                    let url = browserUrlBar.value.trim();
+                    if (url) {
+                        // Add http:// if missing, for basic functionality
+                        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                            url = 'http://' + url;
+                        }
+                        // Use a proxy or specific allowed domains for real browsing in an iframe due to security
+                        // For a simple demo, we'll just try to load it.
+                        // Note: Many sites prevent loading in iframes for security reasons (X-Frame-Options).
+                        try {
+                            browserIframe.src = url;
+                        } catch (e) {
+                            showMessageBox(`Could not load ${url}. Many websites block loading in iframes for security.`);
+                        }
+                    }
+                }
+
+                browserGoButton.onclick = navigateBrowser;
+                browserUrlBar.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        navigateBrowser();
+                    }
+                });
+            }
+        });
+
+        // --- Theme Settings Logic ---
+        const themeSettings = {
+            taskbarColor: document.getElementById('taskbar-color'),
+            headerColor: document.getElementById('header-color'),
+            textColor: document.getElementById('text-color'),
+            buttonRoundedness: document.getElementById('button-roundedness'),
+            buttonRoundednessValue: document.getElementById('button-roundedness-value'),
+            wallpaperImage: document.getElementById('wallpaper-image'),
+            applyButton: document.getElementById('apply-theme-button')
+        };
+
+        const defaultTheme = {
+            taskbarColor: '#3a3f47',
+            headerColor: '#3a3f47',
+            textColor: '#e0e0e0',
+            buttonRoundedness: '8px',
+            wallpaperImage: 'none'
+        };
+
+        let currentTheme = { ...defaultTheme }; // Start with default theme
+
+        /**
+         * Applies the current theme settings to the CSS variables.
+         */
+        function applyTheme() {
+            const root = document.documentElement;
+            root.style.setProperty('--taskbar-bg', currentTheme.taskbarColor);
+            root.style.setProperty('--window-header-bg', currentTheme.headerColor);
+            root.style.setProperty('--text-color', currentTheme.textColor);
+            root.style.setProperty('--button-border-radius', currentTheme.buttonRoundedness);
+            root.style.setProperty('--wallpaper-image', currentTheme.wallpaperImage === '' ? 'none' : `url(${currentTheme.wallpaperImage})`);
+
+            // Update the display value for roundedness slider
+            if (themeSettings.buttonRoundednessValue) {
+                themeSettings.buttonRoundednessValue.textContent = currentTheme.buttonRoundedness;
+            }
+        }
+
+        // Event listeners for theme settings controls
+        if (themeSettings.taskbarColor) {
+            themeSettings.taskbarColor.addEventListener('input', (e) => {
+                currentTheme.taskbarColor = e.target.value;
+            });
+        }
+        if (themeSettings.headerColor) {
+            themeSettings.headerColor.addEventListener('input', (e) => {
+                currentTheme.headerColor = e.target.value;
+            });
+        }
+        if (themeSettings.textColor) {
+            themeSettings.textColor.addEventListener('input', (e) => {
+                currentTheme.textColor = e.target.value;
+            });
+        }
+        if (themeSettings.buttonRoundedness) {
+            themeSettings.buttonRoundedness.addEventListener('input', (e) => {
+                currentTheme.buttonRoundedness = `${e.target.value}px`;
+                if (themeSettings.buttonRoundednessValue) {
+                    themeSettings.buttonRoundednessValue.textContent = currentTheme.buttonRoundedness;
+                }
+            });
+        }
+        if (themeSettings.wallpaperImage) {
+            themeSettings.wallpaperImage.addEventListener('input', (e) => {
+                currentTheme.wallpaperImage = e.target.value;
+            });
+        }
+        if (themeSettings.applyButton) {
+            themeSettings.applyButton.addEventListener('click', applyTheme);
+        }
+
+        // --- Initialization ---
+        // Call these functions when the page loads to set up the desktop and taskbar
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDesktopIcons();
+            renderTaskbarIcons();
+            updateDisplay(); // Initialize calculator display
+            applyTheme(); // Apply the default or last-set theme on load
+        });
+    </script>
+</body>
+</html>
